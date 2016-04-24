@@ -1,0 +1,6 @@
+venv
+*.pyc
+.idea
+migrations
+download
+*.db
