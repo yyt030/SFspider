@@ -6,7 +6,6 @@ import html_downloader
 import html_outputer
 import html_parser
 import url_manager
-import time
 
 
 class SpiderMain(object):
@@ -31,26 +30,24 @@ class SpiderMain(object):
                 self.urls.add_new_urls(new_page_urls, type='page')
                 self.urls.add_new_urls(new_question_urls, type='question')
 
-                # question detail
+                # 问题详情含具体的回答内容
                 while self.urls.has_new_url('question'):
                     question_url = self.urls.get_new_url('question')
                     html_content = self.downloader.download(question_url)
-                    self.parser.parse_question(question_url, html_content)
-                    time.sleep(0.1)
+                    response_data = self.parser.parse_question(question_url, html_content)
+                    self.outputer.save_mysql(response_data)
+
                     break
 
-                # self.outputer.collect_data(new_data)
-                time.sleep(0.5)
                 if page_number >= 1:
                     break
                 page_number += 1
         except Exception as e:
             print 'craw failed:{}{}'.format(e.args, e.message)
 
-        self.outputer.output_html()
-
 
 if __name__ == '__main__':
-    root_url = 'https://segmentfault.com/t/python?type=votes'
+    #root_url = 'https://segmentfault.com/t/java?type=votes'
+    root_url = 'https://segmentfault.com/t/python'
     obj_spider = SpiderMain()
     obj_spider.craw(root_url)

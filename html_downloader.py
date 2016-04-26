@@ -2,12 +2,13 @@
 # coding: utf8
 __author__ = 'yueyt'
 
+import time
+
 import requests
 
 
 class HtmlDownloader(object):
     def __init__(self):
-
         self.headers = {
             'Host': 'segmentfault.com',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -23,7 +24,13 @@ class HtmlDownloader(object):
     def download(self, url):
         if url is None:
             return None
-        r = requests.get(url, headers=self.headers)
-        if r.status_code != 200:
-            return None
-        return r.content
+        try:
+            r = requests.get(url, headers=self.headers)
+            time.sleep(1)
+        except requests.ConnectionError as e:
+            print '>>>', url, e.args, e.message,
+            return
+        else:
+            if r.status_code != 200:
+                return None
+            return r.content

@@ -35,17 +35,20 @@ class HtmlParser(object):
         question_title = soup.find('h1', id='questionTitle')
         question_content = soup.find('div', class_='question fmt')
         question_id = question_content.attrs.get('data-id')
+        question_tags = soup.find_all('a', class_='tag', href=re.compile(r'/t/'))
         answer_contents = soup.find_all('div', class_='answer fmt')
-        # print '>>>', type(answer_contents)
+
         response_data['answer_contents'] = []
         for content in answer_contents:
-            response_data['answer_contents'].append([child for child in content.children])
+            response_data['answer_contents'].append(''.join(map(str, [child for child in content.children])))
 
         response_data['question_title'] = question_title.a.string
         response_data['question_id'] = question_id
         response_data['question_content'] = question_content
+        response_data['question_tags'] = [tag.string for tag in question_tags]
 
-        print '>>>', response_data
+        # print '>>>', __name__, response_data.get('url'), \
+        #     response_data.get('question_title'), response_data.get('question_tags')
         return response_data
 
     def parse(self, page_url, html_content):
@@ -60,5 +63,5 @@ class HtmlParser(object):
         if question_url is None or html_content is None:
             return
         soup = BeautifulSoup(html_content, 'html.parser', from_encoding='utf8')
-        self._get_new_detail_data(question_url, soup)
-        return
+        new_data = self._get_new_detail_data(question_url, soup)
+        return new_data
