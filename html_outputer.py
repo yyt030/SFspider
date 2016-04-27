@@ -22,6 +22,8 @@ class HtmlOutputer(object):
         self.sql_question_tag = u'insert into question_tag (question_id, tag_id) values(%s, %s)'
 
     def save_mysql(self, data):
+        if data is None or len(data) == 0:
+            return
         value_args_question = data.get('question_title'), str(data.get('question_content')), str(
             data.get('question_content'))
         question_id = self._insert_record(self.sql_question, value_args_question)

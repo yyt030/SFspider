@@ -37,9 +37,7 @@ class SpiderMain(object):
                     response_data = self.parser.parse_question(question_url, html_content)
                     self.outputer.save_mysql(response_data)
 
-                    break
-
-                if page_number >= 1:
+                if page_number >= 10:
                     break
                 page_number += 1
         except Exception as e:
@@ -47,7 +45,7 @@ class SpiderMain(object):
 
 
 if __name__ == '__main__':
-    #root_url = 'https://segmentfault.com/t/java?type=votes'
+    # root_url = 'https://segmentfault.com/t/java?type=votes'
     root_url = 'https://segmentfault.com/t/python'
     obj_spider = SpiderMain()
     obj_spider.craw(root_url)
