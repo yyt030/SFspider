@@ -45,7 +45,7 @@ class SpiderMain(object):
 
 
 if __name__ == '__main__':
-    # root_url = 'https://segmentfault.com/t/java?type=votes'
-    root_url = 'https://segmentfault.com/t/python'
+    root_url = 'https://segmentfault.com/t/java?type=votes'
+    #root_url = 'https://segmentfault.com/t/python'
     obj_spider = SpiderMain()
     obj_spider.craw(root_url)
