@@ -19,9 +19,9 @@ class SpiderMain(object):
         # 输出器
         self.outputer = html_outputer.HtmlOutputer()
 
-    def craw(self, root_url):
+    def craw(self, root_urls):
         page_number = 1
-        self.urls.add_new_url(root_url, type='page')
+        self.urls.add_new_urls(root_urls, type='page')
         try:
             while self.urls.has_new_url('page'):
                 next_page_url = self.urls.get_new_url('page')
@@ -45,7 +45,7 @@ class SpiderMain(object):
 
 
 if __name__ == '__main__':
-    root_url = 'https://segmentfault.com/t/java?type=votes'
+    root_urls = ['https://segmentfault.com/t/java?type=votes']
     #root_url = 'https://segmentfault.com/t/python'
     obj_spider = SpiderMain()
-    obj_spider.craw(root_url)
+    obj_spider.craw(root_urls)
