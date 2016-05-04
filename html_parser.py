@@ -40,7 +40,7 @@ class HtmlParser(object):
 
         response_data['answer_contents'] = []
         for content in answer_contents:
-            response_data['answer_contents'].append(''.join(map(str, [child for child in content.children])))
+            response_data['answer_contents'].append(''.join(map(unicode, [child for child in content.children])))
 
         response_data['question_title'] = question_title.a.string
         response_data['question_id'] = question_id
@@ -53,7 +53,7 @@ class HtmlParser(object):
 
     def parse_page(self, page_url, html_content):
         if page_url is None or html_content is None:
-            return None
+            return set(), set()
         soup = BeautifulSoup(html_content, 'html.parser', from_encoding='utf8')
         new_page_urls = self._get_new_page_urls(page_url, soup)
         new_question_urls = self._get_new_question_urls(page_url, soup)
@@ -61,7 +61,16 @@ class HtmlParser(object):
 
     def parse_question(self, question_url, html_content):
         if question_url is None or html_content is None:
-            return
+            return None
         soup = BeautifulSoup(html_content, 'html.parser', from_encoding='utf8')
         new_data = self._get_new_detail_data(question_url, soup)
         return new_data
+
+
+if __name__ == '__main__':
+    url = 'https://segmentfault.com/q/1010000000095034'
+    parser = HtmlParser()
+    with open(r'demo.html') as f:
+        soup = f.read()
+        data = parser.parse_question(url, soup)
+    print '>>>', data

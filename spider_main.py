@@ -11,7 +11,7 @@ import html_parser
 import url_manager
 
 
-class SpiderMain(threading.Thread):
+class SpiderByUrl(threading.Thread):
     def __init__(self, page_queue, question_queue, data_queue):
         threading.Thread.__init__(self)
         self.page_queue = page_queue
@@ -55,7 +55,6 @@ class SpiderMain(threading.Thread):
         count = 1
         while not self.page_queue.empty():
             page_url = self.page_queue.get()
-            print '>>> 1', page_url
             html_content = self.downloader.download(page_url)
             new_page_urls, new_question_urls = self.parser.parse_page(page_url, html_content)
             self.urls_mul.add_new_urls(new_page_urls, self.page_queue)
@@ -66,31 +65,71 @@ class SpiderMain(threading.Thread):
 
         while not self.question_queue.empty():
             question_url = self.question_queue.get()
-            print '>>> 2', question_url
             html_content = self.downloader.download(question_url)
             response_data = self.parser.parse_question(question_url, html_content)
             self.outputer.save_mysql(response_data)
+
+
+class SpiderByQueue(threading.Thread):
+    def __init__(self, queue):
+        threading.Thread.__init__(self)
+        self.in_queue = queue
+
+        self.downloader = html_downloader.HtmlDownloader()
+        self.parser = html_parser.HtmlParser()
+        self.outputer = html_outputer.HtmlOutputer()
+
+    def run(self):
+        page_num = 0
+        while True:
+            type, url_or_data = self.in_queue.get()
+            if type == 'page_url':
+                print '>>>', self.getName(), type, url_or_data
+                html_content = self.downloader.download(url_or_data)
+                new_page_urls, new_question_urls = self.parser.parse_page(url_or_data, html_content)
+                for new_page_url in new_page_urls:
+                    self.in_queue.put(['page_url', new_page_url])
+                for new_question_url in new_question_urls:
+                    self.in_queue.put(['question_url', new_question_url])
+
+                # 限制爬取页数
+                page_num += 1
+                if page_num > 10:
+                    if self.in_queue.empty():
+                        break
+                    continue
+            elif type == 'question_url':
+                print '>>>', self.getName(), type, url_or_data
+                html_content = self.downloader.download(url_or_data)
+                response_data = self.parser.parse_question(url_or_data, html_content)
+                if response_data is None or len(response_data) == 0:
+                    continue
+                self.in_queue.put(['data', response_data])
+            elif type == 'data':
+                self.outputer.save_mysql(url_or_data)
 
 
 if __name__ == '__main__':
     start_urls = ['https://segmentfault.com/t/java?type=votes',
                   'https://segmentfault.com/t/python?type=votes']
     # 队列
-    page_queue = Queue.Queue()
-    question_queue = Queue.Queue()
+    url_or_data_queue = Queue.Queue()
     data_queue = Queue.Queue()
 
     for url in start_urls:
-        page_queue.put(url)
+        url_or_data_queue.put(['page_url', url])
 
     threads = []
-    thread_amount = 3
+    thread_download_amount = 10
 
-    for i in range(thread_amount):
-        threads.append(SpiderMain(page_queue, question_queue, data_queue))
+    for i in range(thread_download_amount):
+        threads.append(SpiderByQueue(url_or_data_queue))
 
-    for i in range(thread_amount):
+    for i in range(thread_download_amount):
         threads[i].start()
 
-    for i in range(thread_amount):
+    for i in range(thread_download_amount):
         threads[i].join()
+
+    data_queue.join()
+    print 'all done'

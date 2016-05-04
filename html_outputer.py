@@ -36,7 +36,7 @@ class HtmlOutputer(object):
 
         if question_id:
             for answer in data.get('answer_contents'):
-                value_args_answer = question_id, str(answer), str(answer)
+                value_args_answer = question_id, unicode(answer), unicode(answer)
                 self._insert_record(self.sql_answer, value_args_answer)
 
     def _insert_record(self, sql, value_args):
