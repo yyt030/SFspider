@@ -1,16 +1,17 @@
 #!/usr/bin/env python
 # coding: utf8
 __author__ = 'yueyt'
+import config
 import pymysql
 
 
 class HtmlOutputer(object):
     def __init__(self):
-        self.conn = pymysql.connect(host='localhost',
-                                    user='root',
-                                    password='root',
-                                    db='answers',
-                                    charset='utf8',
+        self.conn = pymysql.connect(host=config.mysql_host,
+                                    user=config.mysql_user,
+                                    password=config.mysql_password,
+                                    db=config.mysql_db,
+                                    charset=config.mysql_charset,
                                     cursorclass=pymysql.cursors.DictCursor)
         self.sql_question = u'INSERT INTO question(title, view_num, create_time, author_id, vote_num, body_html, body) ' \
                             u'VALUES (%s, 0, current_timestamp, 1, 0, %s, %s)'

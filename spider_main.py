@@ -5,6 +5,7 @@ __author__ = 'yueyt'
 import Queue
 import threading
 
+import config
 import html_downloader
 import html_outputer
 import html_parser
@@ -94,7 +95,7 @@ class SpiderByQueue(threading.Thread):
 
                 # 限制爬取页数
                 page_num += 1
-                if page_num > 10:
+                if page_num > config.page_num:
                     if self.in_queue.empty():
                         break
                     continue
@@ -120,7 +121,7 @@ if __name__ == '__main__':
         url_or_data_queue.put(['page_url', url])
 
     threads = []
-    thread_download_amount = 10
+    thread_download_amount = config.concurrent_thread_amount or 10
 
     for i in range(thread_download_amount):
         threads.append(SpiderByQueue(url_or_data_queue))

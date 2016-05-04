@@ -47,8 +47,6 @@ class HtmlParser(object):
         response_data['question_content'] = question_content
         response_data['question_tags'] = [tag.string for tag in question_tags]
 
-        # print '>>>', __name__, response_data.get('url'), \
-        #     response_data.get('question_title'), response_data.get('question_tags')
         return response_data
 
     def parse_page(self, page_url, html_content):
