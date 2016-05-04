@@ -50,3 +50,23 @@ class UrlManager(object):
             new_url = self.new_answer_urls.pop()
         self.old_urls.add(new_url)
         return new_url
+
+
+class UrlManagerMul(object):
+    def __init__(self):
+        pass
+
+    def add_new_url(self, url, queue):
+        if url is None:
+            return
+        queue.put(url)
+
+    def add_new_urls(self, urls, queue):
+        if urls is None or len(urls) == 0:
+            return
+        for url in urls:
+            self.add_new_url(url, queue)
+
+    def get_new_url(self, queue):
+        url = queue.get()
+        return url

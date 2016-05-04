@@ -26,10 +26,10 @@ class HtmlDownloader(object):
             return None
         try:
             r = requests.get(url, headers=self.headers)
-            time.sleep(1)
+            #time.sleep(1)
         except requests.ConnectionError as e:
             print '>>>', url, e.args, e.message,
-            return
+            return None
         else:
             if r.status_code != 200:
                 return None

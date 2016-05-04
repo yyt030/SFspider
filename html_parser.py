@@ -51,7 +51,7 @@ class HtmlParser(object):
         #     response_data.get('question_title'), response_data.get('question_tags')
         return response_data
 
-    def parse(self, page_url, html_content):
+    def parse_page(self, page_url, html_content):
         if page_url is None or html_content is None:
             return None
         soup = BeautifulSoup(html_content, 'html.parser', from_encoding='utf8')
