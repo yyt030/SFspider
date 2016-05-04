@@ -29,4 +29,4 @@ concurrent_thread_amount = 10
 download_delay = 1
 
 # 爬取前几页
-page_num = 10
+page_number = 10
