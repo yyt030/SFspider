@@ -6,3 +6,4 @@ download
 *.db
 *.html
 .swp
+*.*~

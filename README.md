@@ -16,6 +16,16 @@
  输出器
 
 ## TODO
-   多线程下载
    redis使用
+
+##
+# 并发线程数
+concurrent_thread_amount = 10
+
+# 爬取下载延迟
+download_delay = 1
+
+# 爬取前几页
+page_num = 10
+
 
