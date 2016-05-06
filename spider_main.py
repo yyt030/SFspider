@@ -73,48 +73,51 @@ class SpiderByUrl(threading.Thread):
 
 
 class SpiderByQueue(threading.Thread):
-    def __init__(self, queue, log_queue):
+    current_page_number = 0
+    current_url_number = 0
+    lock = threading.RLock()
+
+    def __init__(self, queue):
         threading.Thread.__init__(self)
         self.in_queue = queue
-        self.log = log_queue
 
         self.downloader = html_downloader.HtmlDownloader()
         self.parser = html_parser.HtmlParser()
         self.outputer = html_outputer.HtmlOutputer()
 
     def run(self):
-        page_number = 0
-        url_number = 0
         while True:
-            type, url_or_data = self.in_queue.get()
-            if type == 'page_url':
-                print '>>>', self.getName(), type, url_or_data
-                html_content = self.downloader.download(url_or_data)
-                new_page_urls, new_question_urls = self.parser.parse_page(url_or_data, html_content)
-                for new_page_url in new_page_urls:
-                    page_number += 1
-                    url_number += 1
-                    self.in_queue.put(['page_url', new_page_url])
-                for new_question_url in new_question_urls:
-                    url_number += 1
-                    self.in_queue.put(['question_url', new_question_url])
+            try:
+                type, url_or_data = self.in_queue.get(block=False, timeout=1)
+            except Queue.Empty:
+                # 队列任务都消费完且已达到限制条件
+                if SpiderByQueue.current_page_number > config.page_number:
+                    break
+            else:
+                if type == 'page_url':
+                    print '>>> {} page_url:{}'.format(self.getName(), url_or_data)
+                    html_content = self.downloader.download(url_or_data)
+                    new_page_urls, new_question_urls = self.parser.parse_page(url_or_data, html_content)
 
-                # 限制爬取页数
-                if page_number > config.page_number:
-                    for i in range(config.concurrent_thread_amount):
-                        self.in_queue.put(['quit', 'quit'])
-            elif type == 'question_url':
-                print '>>>', self.getName(), type, url_or_data
-                html_content = self.downloader.download(url_or_data)
-                response_data = self.parser.parse_question(url_or_data, html_content)
-                if response_data is None or len(response_data) == 0:
-                    continue
-                self.in_queue.put(['data', response_data])
-            elif type == 'data':
-                self.outputer.save_mysql(url_or_data)
-            elif type == 'quit' and url_or_data == 'quit':
-                self.log.put([page_number, url_number])
-                break
+                    for new_page_url in new_page_urls:
+                        self.in_queue.put(['page_url', new_page_url])
+                    for new_question_url in new_question_urls:
+                        self.in_queue.put(['question_url', new_question_url])
+
+                    with SpiderByQueue.lock:
+                        SpiderByQueue.current_page_number += len(new_page_urls)
+                        SpiderByQueue.current_url_number += len(new_page_urls) + len(new_question_urls)
+
+
+                elif type == 'question_url':
+                    print '>>> {} question_url:{}'.format(self.getName(), url_or_data)
+                    html_content = self.downloader.download(url_or_data)
+                    response_data = self.parser.parse_question(url_or_data, html_content)
+                    if response_data is None or len(response_data) == 0:
+                        continue
+                    self.in_queue.put(['data', response_data])
+                elif type == 'data':
+                    self.outputer.save_mysql(url_or_data)
 
 
 if __name__ == '__main__':
@@ -122,34 +125,24 @@ if __name__ == '__main__':
                   'https://segmentfault.com/t/python?type=votes']
     # 队列
     url_or_data_queue = Queue.Queue()
-    log_queue = Queue.Queue()
 
     # 放入初始url
     for url in start_urls:
         url_or_data_queue.put(['page_url', url])
 
     # 线程启动哦
-    threads = []
-    thread_download_amount = config.concurrent_thread_amount or 10
-
-    for i in range(thread_download_amount):
-        threads.append(SpiderByQueue(url_or_data_queue, log_queue))
     start_time = datetime.datetime.now()
-    for i in range(thread_download_amount):
-        threads[i].start()
+    thread_download_amount = config.concurrent_thread_amount or 10
+    threads = [SpiderByQueue(url_or_data_queue) for _ in xrange(thread_download_amount)]
+
+    for thread in threads:
+        thread.setDaemon(True)
+        thread.start()
 
     # 线程同步
-    for i in range(thread_download_amount):
-        threads[i].join()
-    url_or_data_queue.join()
+    for thread in threads:
+        thread.join()
 
-    # 打印日志
-    all_page_num = 0
-    all_url_num = 0
-    while not log_queue.empty():
-        page_number, url_number = log_queue.get()
-        all_page_num += page_number
-        all_url_num += url_number
-
-    print '{}\nTotal pages:{}, urls:{}, times:{}'.format('*' * 20, all_page_num, all_url_num,
+    print '{}\nTotal pages:{}, urls:{}, times:{}'.format('*' * 30, SpiderByQueue.current_page_number,
+                                                         SpiderByQueue.current_url_number,
                                                          datetime.datetime.now() - start_time)
