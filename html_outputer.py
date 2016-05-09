@@ -25,7 +25,7 @@ class HtmlOutputer(object):
     def save_mysql(self, data):
         if data is None or len(data) == 0:
             return
-        value_args_question = data.get('question_title'), str(data.get('question_content')), str(
+        value_args_question = unicode(data.get('question_title')), unicode(data.get('question_content')), unicode(
             data.get('question_content'))
         question_id = self._insert_record(self.sql_question, value_args_question)
 
@@ -58,15 +58,3 @@ class HtmlOutputer(object):
     def __del__(self):
         if self.conn:
             self.conn.close()
-
-
-if __name__ == '__main__':
-    out = HtmlOutputer()
-    from html_parser import HtmlParser
-
-    parser = HtmlParser()
-    question_url = 'www.baidu.com'
-    with file(r'1010000005005827.html') as f:
-        html_content = f.read()
-        response_data = parser.parse_question(question_url, html_content)
-        out.save_mysql(response_data)
