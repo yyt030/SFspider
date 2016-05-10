@@ -74,24 +74,25 @@ class ZhihuParser:
 
     def parse_subtopic(self, base_url, html_content):
         if base_url is None or html_content is None:
-            return set(), set()
+            return None, None
         soup = BeautifulSoup(html_content, 'html.parser', from_encoding='utf8')
-        topics = soup.find_all(class_='blk')
-        subtopic_urls = [urljoin(base_url, '{}/top-answers'.format(topic.a.get('href'))) for topic in topics]
+        subtopics = soup.find_all(class_='blk')
+        subtopic_urls = [('subtopic_url', urljoin(base_url, '{}/top-answers'.format(topic.a.get('href')))) for topic in
+                         subtopics]
         return subtopic_urls
 
-    def parse_topic_question_url(self, base_url, html_content):
+    def parse_top_question_url(self, base_url, html_content):
         if html_content is None:
-            return set(), set()
+            return None, None
         soup = BeautifulSoup(html_content, 'html.parser', from_encoding='utf8')
         next_subtopic_urls = soup.find(href=re.compile(r'page='), text=u'下一页')
         if next_subtopic_urls:
-            next_subtopic_urls = [urljoin(base_url, next_subtopic_urls.get('href'))]
+            next_subtopic_urls = [('subtopic_url', urljoin(base_url, next_subtopic_urls.get('href')))]
         new_question_urls = soup.find_all(class_='question_link')
         if new_question_urls:
-            new_question_urls = [urljoin(base_url, b.get('href')) for b in new_question_urls]
+            new_question_urls = [('answer_url', urljoin(base_url, b.get('href'))) for b in new_question_urls]
 
-        return next_subtopic_urls, new_question_urls
+        return next_subtopic_urls + new_question_urls
 
     def parse_question_detail(self, url, html_content):
         if url is None or html_content is None:
@@ -114,4 +115,4 @@ class ZhihuParser:
         for answer_content in answer_contents:
             response_data['answer_contents'].append(''.join([unicode(i).strip() for i in answer_content.children]))
 
-        return response_data
+        return [('data', response_data)]

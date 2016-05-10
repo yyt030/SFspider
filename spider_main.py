@@ -73,7 +73,6 @@ class SpiderByUrl(threading.Thread):
 
 
 class SpiderByQueue(threading.Thread):
-    current_page_number = 0
     current_url_number = 0
     lock = threading.RLock()
 
@@ -86,77 +85,56 @@ class SpiderByQueue(threading.Thread):
         self.zhihu_parser = html_parser.ZhihuParser()
         self.outputer = html_outputer.HtmlOutputer()
 
+        # 定义函数对照表,主要解决解析函数过多，类型过多的问题
+        self.function_table = {
+            # 类型: 解析实例.解析函数
+            ## Zhihu
+            'topic_url': self.zhihu_parser.parse_subtopic,
+            'subtopic_url': self.zhihu_parser.parse_top_question_url,
+            'answer_url': self.zhihu_parser.parse_question_detail,
+            ## SegmentFault
+            'page_url': self.parser.parse_page,
+            'question_url': self.parser.parse_question,
+
+            'data': self.outputer.save_mysql
+        }
+
     def run(self):
         while True:
             try:
                 type, url_or_data = self.in_queue.get(block=False, timeout=1)
             except Queue.Empty:
                 # 队列任务都消费完且已达到限制条件
-                if SpiderByQueue.current_page_number > config.page_number:
+                if SpiderByQueue.current_url_number > config.url_number:
                     break
             else:
-                ### SegmentFault spider
+                func = self.function_table.get(type)  # 解析报文函数
+                if not func:
+                    print('::: not found right function:', type, url_or_data)
+                    continue
+
                 if type == 'data':
-                    self.outputer.save_mysql(url_or_data)
-                elif type == 'question_url':
-                    print '>>> {} question_url:{}'.format(self.getName(), url_or_data)
+                    func(url_or_data)
+                else:
+                    print '>>>', self.getName(), type, url_or_data
                     html_content = self.downloader.download(url_or_data)
-                    response_data = self.parser.parse_question(url_or_data, html_content)
+                    # 解析函数, 返回list, 每项类型为tuple
+                    response_data = func(url_or_data, html_content)
                     if response_data is None or len(response_data) == 0:
                         continue
-                    self.in_queue.put(['data', response_data])
-                elif type == 'page_url':
-                    print '>>> {} page_url:{}'.format(self.getName(), url_or_data)
-                    html_content = self.downloader.download(url_or_data)
-                    new_page_urls, new_question_urls = self.parser.parse_page(url_or_data, html_content)
 
                     with SpiderByQueue.lock:
-                        SpiderByQueue.current_page_number += len(new_page_urls)
-                        SpiderByQueue.current_url_number += len(new_page_urls) + len(new_question_urls)
-                        # if SpiderByQueue.current_page_number > config.page_number:
-                        #     continue
-
-                    for new_page_url in new_page_urls:
-                        self.in_queue.put(['page_url', new_page_url])
-                    for new_question_url in new_question_urls:
-                        self.in_queue.put(['question_url', new_question_url])
-
-
-                ### Zhihu spider
-                elif type == 'answer_url':
-                    print '>>> {} answer_url:{}'.format(self.getName(), url_or_data)
-                    question_content = self.downloader.download(url_or_data)
-                    response_data = self.zhihu_parser.parse_question_detail(url_or_data, question_content)
-                    if response_data is None or len(response_data) == 0:
-                        continue
-                    self.in_queue.put(['data', response_data])
-
-                elif type == 'subtopic_url':
-                    print '>>> {} subtopic_url:{}'.format(self.getName(), url_or_data)
-                    subtopic_content = self.downloader.download(url_or_data)
-                    if subtopic_content is None:
-                        continue
-                    next_subtopic_urls, new_question_urls = self.zhihu_parser.parse_topic_question_url(url_or_data,
-                                                                                                       subtopic_content)
-
-                    with SpiderByQueue.lock:
-                        SpiderByQueue.current_page_number += len(new_question_urls)
-                        SpiderByQueue.current_url_number += len(new_question_urls) + len(next_subtopic_urls)
-                        if SpiderByQueue.current_page_number > config.page_number:
+                        if type in ['topic_url',
+                                    'subtopic_url'] and SpiderByQueue.current_url_number > config.url_number:
                             continue
-                    for new_question_url in new_question_urls:
-                        self.in_queue.put(['answer_url', new_question_url])
 
-                elif type == 'topic_url':
-                    print '>>> %s topic_url:%s' % (self.getName(), url_or_data)
-                    topic_content = self.downloader.download(url_or_data)
-                    subtopic_urls = self.zhihu_parser.parse_subtopic(url_or_data, topic_content)
-
-                    with SpiderByQueue.lock:
-                        if SpiderByQueue.current_page_number > config.page_number:
-                            continue
-                    for subtopic_url in subtopic_urls:
-                        self.in_queue.put(['subtopic_url', subtopic_url])
+                        if str(type).endswith('url'):
+                            SpiderByQueue.current_url_number += len(response_data)
+                    try:
+                        for next_type, data in response_data:
+                            self.in_queue.put([next_type, data])
+                    except TypeError:
+                        print 'ERROR:', response_data
 
 
 def main():
@@ -172,7 +150,7 @@ def main():
     # 线程启动哦
     start_time = datetime.datetime.now()
     thread_download_amount = config.concurrent_thread_amount or 10
-    threads = [SpiderByQueue(url_or_data_queue) for _ in xrange(thread_download_amount)]
+    threads = [SpiderByQueue(url_or_data_queue) for _ in range(thread_download_amount)]
 
     for thread in threads:
         thread.setDaemon(True)
@@ -182,10 +160,10 @@ def main():
     for thread in threads:
         thread.join()
 
-    print '{}\nTotal pages:{}, urls:{}, times:{}'.format('*' * 30, SpiderByQueue.current_page_number,
-                                                         SpiderByQueue.current_url_number,
-                                                         datetime.datetime.now() - start_time)
+    print('{}\nTotal urls: {}, times:{}'.format('*' * 30, SpiderByQueue.current_url_number,
+                                                datetime.datetime.now() - start_time))
 
 
+### Main function
 if __name__ == '__main__':
     main()
