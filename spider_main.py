@@ -4,7 +4,6 @@ __author__ = 'yueyt'
 
 import Queue
 import datetime
-import random
 import threading
 
 import config
@@ -74,7 +73,7 @@ class SpiderByQueue(threading.Thread):
                     try:
                         for next_type, data in response_data:
                             self.in_queue.put([next_type, data])
-                    except TypeError:
+                    except Exception:
                         print 'ERROR:', response_data
 
 
@@ -86,7 +85,7 @@ def main():
 
     # 放入初始url
     for url in start_urls:
-        url_or_data_queue.put(['topic_url', url])
+        url_or_data_queue.put(['page_url', url])
 
     # 线程启动哦
     start_time = datetime.datetime.now()

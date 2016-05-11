@@ -24,6 +24,14 @@ page_num = 10
 * 定义函数对照表,主要解决解析函数过多，类型过多的问题
 self.function_table = {...}
 
+## 使用
+* 执行init.sql 建表
+* 配置config.py的start_urls
+* 修改spider_main.py的“放入初始url”部分
+* 编辑self.function_table映射表
+* 修改解析函数逻辑解析
+
 ## TODO
-* redis使用
+* redis使用: 使用redis管理url,并实现分布式爬取
+
 

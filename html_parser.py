@@ -54,12 +54,13 @@ class HtmlParser:
 
     def parse_page(self, page_url, html_content):
         if page_url is None or html_content is None:
-            return set(), set()
+            return
         soup = BeautifulSoup(html_content, 'html.parser', from_encoding='utf8')
         new_page_urls = self._get_new_page_urls(page_url, soup)
         new_question_urls = self._get_new_question_urls(page_url, soup)
-        return [('page_url', new_page_url) for new_page_url in new_page_urls] + [('question_url', new_question_url) for new_question_url in
-                                                                         new_question_urls]
+        return [('page_url', new_page_url) for new_page_url in new_page_urls] + [('question_url', new_question_url) for
+                                                                                 new_question_url in
+                                                                                 new_question_urls]
 
     def parse_question(self, question_url, html_content):
         if question_url is None or html_content is None:
@@ -75,7 +76,7 @@ class ZhihuParser:
 
     def parse_subtopic(self, base_url, html_content):
         if base_url is None or html_content is None:
-            return None, None
+            return None
         soup = BeautifulSoup(html_content, 'html.parser', from_encoding='utf8')
         subtopics = soup.find_all(class_='blk')
         subtopic_urls = [('subtopic_url', urljoin(base_url, '{}/top-answers'.format(topic.a.get('href')))) for topic in
@@ -84,7 +85,7 @@ class ZhihuParser:
 
     def parse_top_question_url(self, base_url, html_content):
         if html_content is None:
-            return None, None
+            return None
         soup = BeautifulSoup(html_content, 'html.parser', from_encoding='utf8')
         next_subtopic_urls = soup.find(href=re.compile(r'page='), text=u'下一页')
         if next_subtopic_urls:
