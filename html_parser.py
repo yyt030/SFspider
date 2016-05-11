@@ -11,7 +11,7 @@ from bs4 import BeautifulSoup
 sys.setrecursionlimit(10000)
 
 
-class HtmlParser(object):
+class HtmlParser:
     def __init__(self):
         pass
 
@@ -58,14 +58,15 @@ class HtmlParser(object):
         soup = BeautifulSoup(html_content, 'html.parser', from_encoding='utf8')
         new_page_urls = self._get_new_page_urls(page_url, soup)
         new_question_urls = self._get_new_question_urls(page_url, soup)
-        return new_page_urls, new_question_urls
+        return [('page_url', new_page_url) for new_page_url in new_page_urls] + [('question_url', new_question_url) for new_question_url in
+                                                                         new_question_urls]
 
     def parse_question(self, question_url, html_content):
         if question_url is None or html_content is None:
             return None
         soup = BeautifulSoup(html_content, 'html.parser', from_encoding='utf8')
         new_data = self._get_new_detail_data(question_url, soup)
-        return new_data
+        return [('data', new_data)]
 
 
 class ZhihuParser:
