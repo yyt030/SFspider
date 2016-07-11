@@ -1,91 +1,68 @@
 #!/usr/bin/env python
-# coding: utf8
+# coding: utf-8
 __author__ = 'yueyt'
 
-import Queue
+from queue import Queue, Empty
 import datetime
 import threading
 
 import config
-import html_downloader
-import html_outputer
-import html_parser
+from html_downloader import HtmlDownloader
+from html_parser import CreditParser
+from html_outputer import HtmlOutputer
 
 
 class SpiderByQueue(threading.Thread):
     current_url_number = 0
-    lock = threading.RLock()
 
     def __init__(self, queue):
-        threading.Thread.__init__(self)
-        self.in_queue = queue
+        super().__init__()
+        self.queue = queue
+        self.download = HtmlDownloader()
+        self.parser = CreditParser(queue)
+        self.output = HtmlOutputer()
 
-        self.downloader = html_downloader.HtmlDownloader()
-        self.parser = html_parser.HtmlParser()
-        self.zhihu_parser = html_parser.ZhihuParser()
-        self.outputer = html_outputer.HtmlOutputer()
-
-        # 定义函数对照表,主要解决解析函数过多，类型过多的问题
-        self.function_table = {
-            # 类型: 解析实例.解析函数
-            ## Zhihu
-            'topic_url': self.zhihu_parser.parse_subtopic,
-            'subtopic_url': self.zhihu_parser.parse_top_question_url,
-            'answer_url': self.zhihu_parser.parse_question_detail,
-            ## SegmentFault
-            'page_url': self.parser.parse_page,
-            'question_url': self.parser.parse_question,
-
-            'data': self.outputer.save_mysql
-        }
+    def get_processer(self, type, *args):
+        """
+            主要处理逻辑函数，根据配置文件，获取执行逻辑处理的先后顺序
+        """
+        is_found = False
+        object_list = [self.download, self.parser, self.output]
+        for obj in object_list:
+            try:
+                # 根据当前的type 获取当前数据的解析函数
+                f = getattr(obj, config.processor.get(type).get('function'))
+            except AttributeError as e:
+                # print(e.args, e)
+                pass
+            else:
+                is_found = True
+                # print(f)
+                # 执行当前函数并将处理结果返回，供后续处理
+                result = f(type, *args)
+                if result:
+                    self.queue.put([config.processor.get(type).get('next_processor'), result])
+        if not is_found:
+            print(">>> ERROR: i can't found the processor:", type, *args)
 
     def run(self):
         while True:
             try:
-                type, url_or_data = self.in_queue.get(block=False, timeout=1)
-            except Queue.Empty:
-                # 队列任务都消费完且已达到限制条件
-                if SpiderByQueue.current_url_number > config.url_number:
-                    break
-            else:
-                func = self.function_table.get(type)  # 解析报文函数
-                if not func:
-                    print('::: not found right function:', type, url_or_data)
-                    continue
-
-                if type == 'data':
-                    func(url_or_data)
-                else:
-                    print '>>>', self.getName(), type, url_or_data
-                    html_content = self.downloader.download(url_or_data)
-                    # 解析函数, 返回list, 每项类型为tuple
-                    response_data = func(url_or_data, html_content)
-                    if response_data is None or len(response_data) == 0:
-                        continue
-
-                    with SpiderByQueue.lock:
-                        if type in ['topic_url',
-                                    'subtopic_url'] and SpiderByQueue.current_url_number > config.url_number:
-                            continue
-
-                        if str(type).endswith('url'):
-                            SpiderByQueue.current_url_number += len(response_data)
-                    try:
-                        for next_type, data in response_data:
-                            self.in_queue.put([next_type, data])
-                    except Exception:
-                        print 'ERROR:', response_data
+                type, *args = self.queue.get(block=False, timeout=1)
+                self.get_processer(type, *args)
+            except Empty:
+                print(">>> ERROR: queue empty")
+                break
 
 
 def main():
-    # 开始爬取的urls
-    start_urls = config.start_urls
-    # 队列
-    url_or_data_queue = Queue.Queue()
+    # queue
+    url_or_data_queue = Queue()
 
     # 放入初始url
-    for url in start_urls:
-        url_or_data_queue.put(['page_url', url])
+    start_point = 'orgcodeinfo_downloader'
+    req_data = dict(corpno='10000349-5')
+    url_or_data_queue.put([start_point, req_data])
 
     # 线程启动哦
     start_time = datetime.datetime.now()
