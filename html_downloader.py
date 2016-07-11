@@ -1,27 +1,46 @@
 #!/usr/bin/env python
-# coding: utf8
+# encoding: utf-8
+
 __author__ = 'yueyt'
 
-import time
+from urllib.parse import urljoin
+
+import requests
 
 import config
-import requests
 
 
 class HtmlDownloader(object):
     def __init__(self):
         self.headers = config.request_header
+        self.s = requests.session()
+        self.s.headers = config.request_header
+        self.s.post(config.login_url, data=config.login_post_data)
 
-    def download(self, url):
-        if url is None:
-            return None
-        try:
-            r = requests.get(url, headers=self.headers)
-            time.sleep(config.download_delay or 1)
-        except requests.ConnectionError as e:
-            print '>>>', url, e.args, e.message,
-            return None
-        else:
-            if r.status_code != 200:
-                return None
-            return r.content
+    # post downloader
+    def post_downloader(self, type, req_data):
+        processor = config.processor.get(type)
+        if not processor:
+            print("i can't get processor", __name__, type, req_data)
+            return
+        url = urljoin(config.root_url, processor.get('url'))
+        payload = processor.get('payload')
+        # dict
+        if req_data:
+            payload.update(req_data)
+        r = self.s.post(url, data=payload)
+        # debug
+        if type == 'loaninfo_detail_downloader':
+            print('>>>', payload)
+        return r.content
+
+    # get downloader
+    def get_downloader(self, type, url):
+        processor = config.processor.get(type)
+        if not processor:
+            print("i can't get processor", __name__, type, url)
+            return
+        url = urljoin(config.root_url, url)
+        print('U' * 10, url)
+        r = self.s.get(url)
+        return r.content
